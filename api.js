@@ -6,6 +6,11 @@ const elasticsearch = require('elasticsearch');
 const models = require('./models');
 const api = express();
 const adminToken = 'rssiprmp';
+const client = new elasticsearch.CLient({
+    'host' : 'localhost:9200',
+    'log'  : 'error',
+});
+
 
 api.use(bodyParser.json());
 
@@ -22,8 +27,9 @@ api.get('/companies', (req, res) => {
 
 /* Adds a new company to the database
  * Example input : {
- *    name: "Glo",
+ *    title: "Glo",
  *    description : "Healty goodshit",
+ *    url : "http://www.glo.is",
  *    punchcard_liftime: 10
  * }
  */
