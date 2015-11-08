@@ -10,6 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "body-parser": "^1.14.1",
+    "elasticsearch": "^9.0.0",
     "express": "^4.13.3",
     "lodash": "^3.10.1",
     "mongodb": "^2.0.46",

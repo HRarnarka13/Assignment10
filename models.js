@@ -8,18 +8,18 @@ const UserSchema = mongoose.Schema({
         required : true,
     },
     token : {
-        type : String,
+        type    : String,
         default : uuid.v4(),
     },
     age : {
         type : Number,
-        min : 0,
-        max : 150,
+        min  : 0,
+        max  : 150,
     },
     gender : {
-        type : String,
-        maxlength : 1,
-        minlength : 1,
+        type       : String,
+        maxlength  : 1,
+        minlength  : 1,
         validation : (val) => {
             return val === "m" || val === "f" || val === "o";
         }
@@ -27,13 +27,25 @@ const UserSchema = mongoose.Schema({
 });
 
 const CompanySchema = mongoose.Schema({
-    name : {
+    // String representing the company name
+    title : {
         type     : String,
         required : true,
     },
+    // String represetning description for the company
     description : {
         type     : String,
         required : true,
+    },
+    // String representing the company homepage
+    url : {
+        type     : String,
+        required : true,
+    },
+    //  Date representing the creation date of the company (when it was posted)
+    created : {
+        type    : Date,
+        default : new Date(),
     },
     punchcard_lifetime : {
         type     : Number,
@@ -44,21 +56,21 @@ const CompanySchema = mongoose.Schema({
 
 const PunchcardSchema = mongoose.Schema({
     company_id : {
-        type : String,
+        type     : String,
         required : true
     },
     user_id : {
-        type : String,
+        type     : String,
         required : true,
     },
     created : {
-        type : Date,
+        type    : Date,
         default : new Date(),
     }
 });
 
 module.exports = {
-    User    : mongoose.model('User', UserSchema),
-    Company : mongoose.model('Company', CompanySchema),
+    User      : mongoose.model('User', UserSchema),
+    Company   : mongoose.model('Company', CompanySchema),
     Punchcard : mongoose.model('Punchcard', PunchcardSchema),
 };

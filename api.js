@@ -2,6 +2,7 @@
 
 const express = require('express');
 const bodyParser = require('body-parser');
+const elasticsearch = require('elasticsearch');
 const models = require('./models');
 const api = express();
 const adminToken = 'rssiprmp';
