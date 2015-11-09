@@ -31,17 +31,20 @@ api.get('/companies', (req, res) => {
             }
         }
     }).then((resp) => {
-        console.log('page', page);
-        console.log('max', max);
-        console.log('resp', resp);
-        res.status(200).send(resp.hits.hits.map((r) => r._source));
-        return;
+        res.status(200).send(resp.hits.hits.map((r) => {
+            return {
+                id : r._source.id,
+                'title' : r._source.title,
+                'description' : r._source.description,
+                'url' : r._source.url
+            };
+        }));
     }, (err) => {
         if (err.status === 404) {
             res.status(200);
             return;
         }
-        console.log('err', err);
+        res.status(500).send(err.message);
     });
 });
 
