@@ -6,7 +6,7 @@ const elasticsearch = require('elasticsearch');
 const models = require('./models');
 const api = express();
 const adminToken = 'rssiprmp';
-const client = new elasticsearch.CLient({
+const client = new elasticsearch.Client({
     'host' : 'localhost:9200',
     'log'  : 'error',
 });
@@ -16,6 +16,34 @@ api.use(bodyParser.json());
 
 // Returns a list of all registered companies
 api.get('/companies', (req, res) => {
+
+    const page = req.params.page || 0;  // Requseted page number or default page 0
+    const max  = req.params.max  || 20; // Requested entries per page or default entries count 20
+
+    client.search({
+        'index' : 'companies',
+        'type'  : 'company',
+        'body'  : {
+            'query' : {
+                'match' : {
+                    'body' : 'elasticsearch'
+                }
+            }
+        }
+    }).then((resp) => {
+        console.log('page', page);
+        console.log('max', max);
+        console.log('resp', resp);
+    }, (err) => {
+        if (err.status === 404) {
+            res.status(200);
+            return;
+        }
+        console.log('err', err);
+    });
+
+
+
     models.Company.find({}, (err, docs) => {
         if (err) {
             res.status(500).send('Error getting companies');
@@ -35,10 +63,29 @@ api.get('/companies', (req, res) => {
  */
 api.post('/companies', (req, res) => {
     // Check if the admin token is set and correct
-    if (req.headers.hasOwnProperty('admin_token') && req.headers.admin_token === adminToken)
+    if (!req.headers.hasOwnProperty('admin_token') || req.headers.admin_token !== adminToken)
     {
-        const company = new models.Company(req.body);
-        // Validate company
+        res.status(401).send('Admin token missing or incorrect');
+        return;
+    }
+    // Check if the Content-Type requested is supported
+    if ( !req.is('application/json') ) {
+        res.status(415).send('Content-Type not supported.');
+        return;
+    }
+    const company = new models.Company(req.body);
+
+    // Check if a company with the same name exists.
+    company.findOne({'title' : req.body.title }, (foundCompany, err) => {
+        if (err) {
+            console.log('ERR', err);
+            return;
+        }
+        if (foundCompany) {
+            res.status(409).send('A company with the same name already exists');
+            return;
+        }
+        // Validate request body
         company.validate((err) => {
             if (err) {
                 res.status(412).send(err.message);
@@ -50,15 +97,12 @@ api.post('/companies', (req, res) => {
                     res.status(500).send(err);
                     return;
                 }
-                // Return
                 res.status(201).send({ 'company_id' : docs._id });
                 return;
             });
         });
-    } else {
-        res.status(401).send('Admin token missing or incorrect');
-        return;
-    }
+
+    });
 });
 
 /* Returns the company with the given id, if the company is not found the server
@@ -149,7 +193,7 @@ api.post('/punchcards/:company_id', (req, res) => {
             res.status(500).send('Error getting company.');
             return;
         }
-        // Check if the company exsist
+        // Check if the company exist
         if (!company) {
             res.status(404).send('Company not found.');
             return;

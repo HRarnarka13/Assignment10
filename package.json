@@ -16,7 +16,8 @@
     "mongodb": "^2.0.46",
     "mongoosastic": "^3.4.0",
     "mongoose": "^4.2.0",
-    "node-uuid": "^1.4.3"
+    "node-uuid": "^1.4.3",
+    "valid-url": "^1.0.9"
   },
   "devDependencies": {
     "eslint": "^1.6.0"

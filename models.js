@@ -1,6 +1,8 @@
 'use strict';
 const mongoose = require('mongoose');
+const mongoosastic = require('mongoosastic');
 const uuid = require('node-uuid');
+const validUrl = require('valid-url');
 
 const UserSchema = mongoose.Schema({
     name : {
@@ -27,10 +29,15 @@ const UserSchema = mongoose.Schema({
 });
 
 const CompanySchema = mongoose.Schema({
+    id : {
+        type    : String,
+        default : uuid.v4(),
+    },
     // String representing the company name
     title : {
-        type     : String,
-        required : true,
+        type       : String,
+        required   : true,
+        es_indexed : true,
     },
     // String represetning description for the company
     description : {
@@ -41,6 +48,9 @@ const CompanySchema = mongoose.Schema({
     url : {
         type     : String,
         required : true,
+        validation : (url) => {
+            return validUrl.isUri(url);
+        }
     },
     //  Date representing the creation date of the company (when it was posted)
     created : {
@@ -53,6 +63,8 @@ const CompanySchema = mongoose.Schema({
         min      : 0,
     }
 });
+
+CompanySchema.plugin(mongoosastic);
 
 const PunchcardSchema = mongoose.Schema({
     company_id : {
