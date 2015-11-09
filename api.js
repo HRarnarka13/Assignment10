@@ -16,6 +16,7 @@ api.use(bodyParser.json());
 
 // Returns a list of all registered companies
 api.get('/companies', (req, res) => {
+    // Lalli looser
 
     const page = req.params.page || 0;  // Requseted page number or default page 0
     const max  = req.params.max  || 20; // Requested entries per page or default entries count 20
