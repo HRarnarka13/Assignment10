@@ -11,7 +11,6 @@ const client = new elasticsearch.Client({
     'log'  : 'error',
 });
 
-
 api.use(bodyParser.json());
 
 // Returns a list of all registered companies
@@ -20,7 +19,7 @@ api.get('/companies', (req, res) => {
     const page = req.query.page || 0;  // Requseted page number or default page 0
     const max  = req.query.max  || 20; // Requested entries per page or default entries count 20
 
-    client.search({
+    const promise = client.search({
         'index' : 'companies',
         'type'  : 'company',
         'size'  : max,
@@ -30,18 +29,20 @@ api.get('/companies', (req, res) => {
                 'match_all' : {}
             }
         }
-    }).then((resp) => {
+    });
+
+    promise.then((resp) => {
         res.status(200).send(resp.hits.hits.map((r) => {
             return {
                 id : r._source.id,
-                'title' : r._source.title,
-                'description' : r._source.description,
-                'url' : r._source.url
+                title : r._source.title,
+                description : r._source.description,
+                url : r._source.url
             };
         }));
     }, (err) => {
         if (err.status === 404) {
-            res.status(200);
+            res.status(200).send([]);
             return;
         }
         res.status(500).send(err.message);
@@ -73,7 +74,6 @@ api.post('/companies', (req, res) => {
     // Check if a company with the same name exists.
     models.Company.findOne({'title' : req.body.title }, (err, foundCompany) => {
         if (err) {
-            console.log('ERR', err);
             res.status(500).send(err.message);
             return;
         }
@@ -93,19 +93,28 @@ api.post('/companies', (req, res) => {
                     res.status(500).send(err.message);
                     return;
                 }
-                console.log(docs);
+
+                const data = {
+                    'id'         : docs.id,
+                    'title'      : docs.title,
+                    'description': docs.description,
+                    'url'        : docs.url,
+                    'created'    : new Date(),
+                };
+
                 // Create index on company title
                 client.index({
                     'index' : 'companies',
                     'type'  : 'company',
-                    'id'    : docs.id,
-                    'body'  : docs,
+                    'id'    : docs._id.toString(),
+                    'body'  : data,
                 }).then((resp) => {
-                    console.log('RES', resp);
                     res.status(201).send({ 'id' : docs.id });
                     return;
                 }, (err) => {
-                    res.status(500).send(err.message);
+                    if (err) {
+                        res.status(500).send(err.message);
+                    }
                 });
             });
         });
@@ -119,16 +128,51 @@ api.post('/companies', (req, res) => {
 api.get('/companies/:id', (req, res) => {
     const id = req.params.id;
     // Find the user by id
-    models.Company.findOne({ '_id' : id }, (err, docs) => {
+    models.Company.findOne({ 'id' : id }, (err, docs) => {
         if (err) {
-            res.status(500).send('Error getting user.');
+            res.status(500).send(err.message);
             return;
         }
         if (!docs) {
             res.status(404).send('User not found.');
             return;
         }
-        res.status(200).send(docs);
+        res.status(200).send({
+            id : docs.id,
+            title : docs.title,
+            description : docs.description,
+            url : docs.url
+        });
+    });
+});
+
+api.post('companies/:id', (req, res) => {
+    const id = req.params.id;
+
+    models.Company.findOne({ 'id' : id }, (err, foundUser) => {
+        if (err) {
+            res.status(500).send(err.message);
+            return;
+        }
+        if (!foundUser) {
+            res.status(404).send('Company not found.');
+            return;
+        }
+
+        const company = new models.Company(req.body);
+        company.validate((err) => {
+            if (err) {
+                res.status(500).send(err.message);
+                return;
+            }
+            company.update({'id' : id}, req.body, (err) => {
+                if (err) {
+                    res.status(500).send(err.message);
+                    return;
+                }
+                res.status(204);
+            });
+        });
     });
 });
 
