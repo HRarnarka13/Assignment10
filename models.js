@@ -1,6 +1,5 @@
 'use strict';
 const mongoose = require('mongoose');
-const mongoosastic = require('mongoosastic');
 const uuid = require('node-uuid');
 const validUrl = require('valid-url');
 
@@ -37,7 +36,6 @@ const CompanySchema = mongoose.Schema({
     title : {
         type       : String,
         required   : true,
-        es_indexed : true,
     },
     // String represetning description for the company
     description : {
@@ -56,15 +54,8 @@ const CompanySchema = mongoose.Schema({
     created : {
         type    : Date,
         default : new Date(),
-    },
-    punchcard_lifetime : {
-        type     : Number,
-        required : true,
-        min      : 0,
     }
 });
-
-CompanySchema.plugin(mongoosastic);
 
 const PunchcardSchema = mongoose.Schema({
     company_id : {

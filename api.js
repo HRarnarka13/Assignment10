@@ -16,41 +16,32 @@ api.use(bodyParser.json());
 
 // Returns a list of all registered companies
 api.get('/companies', (req, res) => {
-    // Lalli looser
 
-    const page = req.params.page || 0;  // Requseted page number or default page 0
-    const max  = req.params.max  || 20; // Requested entries per page or default entries count 20
+    const page = req.query.page || 0;  // Requseted page number or default page 0
+    const max  = req.query.max  || 20; // Requested entries per page or default entries count 20
 
     client.search({
         'index' : 'companies',
         'type'  : 'company',
+        'size'  : max,
+        'from'  : page,
         'body'  : {
             'query' : {
-                'match' : {
-                    'body' : 'elasticsearch'
-                }
+                'match_all' : {}
             }
         }
     }).then((resp) => {
         console.log('page', page);
         console.log('max', max);
         console.log('resp', resp);
+        res.status(200).send(resp.hits.hits.map((r) => r._source));
+        return;
     }, (err) => {
         if (err.status === 404) {
             res.status(200);
             return;
         }
         console.log('err', err);
-    });
-
-
-
-    models.Company.find({}, (err, docs) => {
-        if (err) {
-            res.status(500).send('Error getting companies');
-            return;
-        }
-        res.status(200).send(docs);
     });
 });
 
@@ -77,9 +68,10 @@ api.post('/companies', (req, res) => {
     const company = new models.Company(req.body);
 
     // Check if a company with the same name exists.
-    company.findOne({'title' : req.body.title }, (foundCompany, err) => {
+    models.Company.findOne({'title' : req.body.title }, (err, foundCompany) => {
         if (err) {
             console.log('ERR', err);
+            res.status(500).send(err.message);
             return;
         }
         if (foundCompany) {
@@ -95,11 +87,23 @@ api.post('/companies', (req, res) => {
             // Save company to database
             company.save((err, docs) => {
                 if (err) {
-                    res.status(500).send(err);
+                    res.status(500).send(err.message);
                     return;
                 }
-                res.status(201).send({ 'company_id' : docs._id });
-                return;
+                console.log(docs);
+                // Create index on company title
+                client.index({
+                    'index' : 'companies',
+                    'type'  : 'company',
+                    'id'    : docs.id,
+                    'body'  : docs,
+                }).then((resp) => {
+                    console.log('RES', resp);
+                    res.status(201).send({ 'id' : docs.id });
+                    return;
+                }, (err) => {
+                    res.status(500).send(err.message);
+                });
             });
         });
 
