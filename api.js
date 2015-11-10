@@ -59,7 +59,7 @@ api.get('/companies', (req, res) => {
 
 /* Adds a new company to the database and creates an index in
  * elasticsearch.
- * Example input : {
+ * Example request.body : {
  *    title: "Glo",
  *    description : "Healty goodshit",
  *    url : "http://www.glo.is",
@@ -101,7 +101,7 @@ api.post('/companies', (req, res) => {
                     res.status(500).send(err.message);
                     return;
                 }
-
+                // Construct data for the index in elasticsearch
                 const data = {
                     'id'         : docs.id,
                     'title'      : docs.title,
@@ -132,10 +132,14 @@ api.post('/companies', (req, res) => {
 });
 
 api.post('/companies/search', (req, res) => {
-    console.log('/companies/search');
+    // Check if the Content-Type requested is supported
+    if ( !req.is('application/json') ) {
+        res.status(415).send('Content-Type not supported.');
+        return;
+    }
+
     var searchstr = req.body.search || "";
-    console.log(searchstr);
-    console.log(searchstr);
+    // Search for the string with elasticsearch
     client.search({
         'index': 'companies',
         'body' : {
@@ -149,6 +153,7 @@ api.post('/companies/search', (req, res) => {
         if (err) {
             res.status(500).send(err.message);
         }
+        // Foreach company found send the CompanyDTO object to the client
         res.status(200).send(response.hits.hits.map((r) => {
             return toCompanyDTO(r._source);
         }));
@@ -170,17 +175,17 @@ api.get('/companies/:id', (req, res) => {
             res.status(404).send('User not found.');
             return;
         }
-        res.status(200).send({
-            id : docs.id,
-            title : docs.title,
-            description : docs.description,
-            url : docs.url
-        });
+        res.status(200).send(toCompanyDTO(docs));
     });
 });
 
-/* This method updates a given company
- *
+/* This method updates a given company in the database and
+ * reindexes elasticsearch.
+ * Example request.body : {
+ *    title: "Glo",
+ *    description : "Healty goodshit",
+ *    url : "http://www.glo.is",
+ * }
  */
 api.post('/companies/:id', (req, res) => {
     // Check if the admin token is set and correct
@@ -194,7 +199,8 @@ api.post('/companies/:id', (req, res) => {
         res.status(415).send('Content-Type not supported.');
         return;
     }
-    const id = req.params.id;
+    const id = req.params.id; // get the id  from the parameter
+    // Fint the company with the matching id
     models.Company.findOne({ 'id' : id }, (err, foundCompany) => {
         if (err) {
             res.status(500).send(err.message);
@@ -204,13 +210,15 @@ api.post('/companies/:id', (req, res) => {
             res.status(404).send('Company not found.');
             return;
         }
-        console.log('Company', foundCompany);
+
         const company = new models.Company(req.body);
+        // validate the request body
         company.validate((err) => {
             if (err) {
                 res.status(500).send(err.message);
                 return;
             }
+            // Check if other companies already hold the company title
             models.Company.findOne({ 'title' : company.title, 'id' : { $not :  { $eq: id } } }, (err, sameName) => {
                 if (err) {
                     res.status(500).send(err.message);
@@ -220,19 +228,19 @@ api.post('/companies/:id', (req, res) => {
                     res.status(409).send('A company with the same name already exists');
                     return;
                 }
-
-                console.log('Req.body', req.body);
+                // Update the company properties
                 models.Company.update({'_id' : foundCompany._id }, req.body, (err) => {
                     if (err) {
                         res.status(500).send(err.message);
                         return;
                     }
-
+                    // Remove the old index
                     client.delete({
                         'index' : 'companies',
                         'type'  : 'company',
                         'id'    : foundCompany._id.toString()
                     }).then(() => {
+                        // Add the new index
                         client.index({
                             'index' : 'companies',
                             'type'  : 'company',
