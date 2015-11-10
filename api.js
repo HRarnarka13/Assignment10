@@ -17,6 +17,7 @@ function isAdmin(header) {
     return header.hasOwnProperty('admin_token') && header.admin_token === adminToken;
 }
 
+// Returns a CompanyDTO object from a given company obejct
 function toCompanyDTO(company) {
     return {
         id : company.id,
@@ -31,7 +32,7 @@ api.get('/companies', (req, res) => {
 
     const page = req.query.page || 0;  // Requseted page number or default page 0
     const max  = req.query.max  || 20; // Requested entries per page or default entries count 20
-
+    // Get companies according to the reqested page and entires count.
     const promise = client.search({
         'index' : 'companies',
         'type'  : 'company',
@@ -45,6 +46,7 @@ api.get('/companies', (req, res) => {
     });
 
     promise.then((resp) => {
+        // Foreach company found, return the CompanyDTO object
         res.status(200).send(resp.hits.hits.map((r) => {
             return toCompanyDTO(r._source);
         }));
