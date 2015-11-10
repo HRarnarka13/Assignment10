@@ -43,7 +43,7 @@ api.get('/companies', (req, res) => {
                 'match_all' : {}
             },
             'sort' : {
-                'title' : { 'order' : 'asc' }
+                'title' : { 'order' : 'asc' } // Sort alpabetically
             }
         }
     });
