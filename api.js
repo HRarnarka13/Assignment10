@@ -57,12 +57,12 @@ api.get('/companies', (req, res) => {
     });
 });
 
-/* Adds a new company to the database
+/* Adds a new company to the database and creates an index in
+ * elasticsearch.
  * Example input : {
  *    title: "Glo",
  *    description : "Healty goodshit",
  *    url : "http://www.glo.is",
- *    punchcard_liftime: 10
  * }
  */
 api.post('/companies', (req, res) => {
@@ -132,6 +132,7 @@ api.post('/companies', (req, res) => {
 });
 
 api.post('/companies/search', (req, res) => {
+    console.log('/companies/search');
     var searchstr = req.body.search || "";
     console.log(searchstr);
     console.log(searchstr);
@@ -178,6 +179,9 @@ api.get('/companies/:id', (req, res) => {
     });
 });
 
+/* This method updates a given company
+ *
+ */
 api.post('/companies/:id', (req, res) => {
     // Check if the admin token is set and correct
     if ( !isAdmin(req.headers) ) {
@@ -207,7 +211,7 @@ api.post('/companies/:id', (req, res) => {
                 res.status(500).send(err.message);
                 return;
             }
-            models.Company.findOne({ 'title' : company.title }, (err, sameName) => {
+            models.Company.findOne({ 'title' : company.title, 'id' : { $not :  { $eq: id } } }, (err, sameName) => {
                 if (err) {
                     res.status(500).send(err.message);
                     return;
@@ -267,17 +271,20 @@ api.delete('/companies/:id', (req, res) => {
         return;
     }
 
-    const id = req.params.id;
+    const id = req.params.id; // get the id from parameter
+    // Find the company with the matching id
     models.Company.findOne({ 'id' : id}, (err, docs) => {
         if (err) {
             res.status(500).send(err.message);
             return;
         }
+        // Remove the company from the database
         models.Company.remove({ 'id' : id }, (err) => {
             if (err) {
                 res.status(500).send(err.message);
                 return;
             }
+            // Remove the index for the company
             client.delete({
                 'index' : 'companies',
                 'type'  : 'company',
