@@ -174,7 +174,7 @@ api.get('/companies/:id', (req, res) => {
             return;
         }
         if (!docs) {
-            res.status(404).send('User not found.');
+            res.status(404).send('Company not found.');
             return;
         }
         res.status(200).send(toCompanyDTO(docs));
@@ -286,6 +286,10 @@ api.delete('/companies/:id', (req, res) => {
     models.Company.findOne({ 'id' : id}, (err, docs) => {
         if (err) {
             res.status(500).send(err.message);
+            return;
+        }
+        if (!docs) {
+            res.status(404).send('Company not found');
             return;
         }
         // Remove the company from the database
