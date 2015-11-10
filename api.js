@@ -41,6 +41,9 @@ api.get('/companies', (req, res) => {
         'body'  : {
             'query' : {
                 'match_all' : {}
+            },
+            'sort' : {
+                'title' : { 'order' : 'asc' }
             }
         }
     });
