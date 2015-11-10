@@ -109,6 +109,7 @@ api.post('/companies', (req, res) => {
                     'id'    : docs._id.toString(),
                     'body'  : data,
                 }).then((resp) => {
+                    console.log(resp);
                     res.status(201).send({ 'id' : docs.id });
                     return;
                 }, (err) => {
@@ -146,31 +147,101 @@ api.get('/companies/:id', (req, res) => {
     });
 });
 
-api.post('companies/:id', (req, res) => {
+api.post('/companies/:id', (req, res) => {
     const id = req.params.id;
-
-    models.Company.findOne({ 'id' : id }, (err, foundUser) => {
+    models.Company.findOne({ 'id' : id }, (err, foundCompany) => {
         if (err) {
             res.status(500).send(err.message);
             return;
         }
-        if (!foundUser) {
+        if (!foundCompany) {
             res.status(404).send('Company not found.');
             return;
         }
-
+        console.log('Company', foundCompany);
         const company = new models.Company(req.body);
         company.validate((err) => {
             if (err) {
                 res.status(500).send(err.message);
                 return;
             }
-            company.update({'id' : id}, req.body, (err) => {
+            models.Company.findOne({ 'title' : company.title }, (err, sameName) => {
                 if (err) {
                     res.status(500).send(err.message);
                     return;
                 }
-                res.status(204);
+                if (sameName) {
+                    res.status(409).send('A company with the same name already exists');
+                    return;
+                }
+
+                console.log('Req.body', req.body);
+                models.Company.update({'_id' : foundCompany._id }, req.body, (err, updatedCompany) => {
+                    if (err) {
+                        res.status(500).send(err.message);
+                        return;
+                    }
+
+                    client.delete({
+                        'index' : 'companies',
+                        'type'  : 'company',
+                        'id'    : foundCompany._id.toString()
+                    }).then((resp) => {
+                        client.index({
+                            'index' : 'companies',
+                            'type'  : 'company',
+                            'id'    : foundCompany._id.toString(),
+                            'body'  : {
+                                'id'         : id,
+                                'title'      : company.title,
+                                'description': company.description,
+                                'url'        : company.url,
+                                'created'    : new Date(),
+                            }
+                        }).then((response) => {
+                            res.status(204).send();
+                        }, (err) => {
+                            if (err) {
+                                res.status(500).send(err.message);
+                                return;
+                            }
+                        });
+                    }, (err) => {
+                        if (err) {
+                            res.status(500).send(err.message);
+                            return;
+                        }
+                    });
+                });
+            });
+        });
+    });
+});
+
+api.delete('/companies/:id', (req, res) => {
+    const id = req.params.id;
+    models.Company.findOne({ 'id' : id}, (err, docs) => {
+        if (err) {
+            res.status(500).send(err.message);
+            return;
+        }
+        models.Company.remove({ 'id' : id }, (err) => {
+            if (err) {
+                res.status(500).send(err.message);
+                return;
+            }
+            client.delete({
+                'index' : 'companies',
+                'type'  : 'company',
+                'id'    : docs._id.toString()
+            }).then((resp) => {
+                res.status(204).send();
+                return;
+            }, (err) => {
+                if (err) {
+                    res.status(500).send(err.message);
+                    return;
+                }
             });
         });
     });

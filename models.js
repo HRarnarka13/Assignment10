@@ -30,12 +30,14 @@ const UserSchema = mongoose.Schema({
 const CompanySchema = mongoose.Schema({
     id : {
         type    : String,
-        default : uuid.v4(),
+        default : uuid.v4,
     },
     // String representing the company name
     title : {
-        type       : String,
-        required   : true,
+        type     : String,
+        required : true,
+        unique   : true,
+        dropDups : true,
     },
     // String represetning description for the company
     description : {
@@ -56,6 +58,8 @@ const CompanySchema = mongoose.Schema({
         default : new Date(),
     }
 });
+
+CompanySchema.path('title').index({ unique: true });
 
 const PunchcardSchema = mongoose.Schema({
     company_id : {
