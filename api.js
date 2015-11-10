@@ -13,6 +13,19 @@ const client = new elasticsearch.Client({
 
 api.use(bodyParser.json());
 
+function isAdmin(header) {
+    return header.hasOwnProperty('admin_token') && header.admin_token === adminToken;
+}
+
+function toCompanyDTO(company) {
+    return {
+        id : company.id,
+        title : company.title,
+        description : company.description,
+        url : company.url
+    };
+}
+
 // Returns a list of all registered companies
 api.get('/companies', (req, res) => {
 
@@ -33,12 +46,7 @@ api.get('/companies', (req, res) => {
 
     promise.then((resp) => {
         res.status(200).send(resp.hits.hits.map((r) => {
-            return {
-                id : r._source.id,
-                title : r._source.title,
-                description : r._source.description,
-                url : r._source.url
-            };
+            return toCompanyDTO(r._source);
         }));
     }, (err) => {
         if (err.status === 404) {
@@ -59,11 +67,11 @@ api.get('/companies', (req, res) => {
  */
 api.post('/companies', (req, res) => {
     // Check if the admin token is set and correct
-    if (!req.headers.hasOwnProperty('admin_token') || req.headers.admin_token !== adminToken)
-    {
+    if ( !isAdmin(req.headers) ) {
         res.status(401).send('Admin token missing or incorrect');
         return;
     }
+
     // Check if the Content-Type requested is supported
     if ( !req.is('application/json') ) {
         res.status(415).send('Content-Type not supported.');
@@ -123,6 +131,29 @@ api.post('/companies', (req, res) => {
     });
 });
 
+api.post('/companies/search', (req, res) => {
+    var searchstr = req.body.search || "";
+    console.log(searchstr);
+    console.log(searchstr);
+    client.search({
+        'index': 'companies',
+        'body' : {
+            'query' : {
+                'match' : {
+                    _all : searchstr
+                }
+            }
+        }
+    }, (err, response) => {
+        if (err) {
+            res.status(500).send(err.message);
+        }
+        res.status(200).send(response.hits.hits.map((r) => {
+            return toCompanyDTO(r._source);
+        }));
+    });
+});
+
 /* Returns the company with the given id, if the company is not found the server
  * returns 404 not found status code.
  */
@@ -148,6 +179,17 @@ api.get('/companies/:id', (req, res) => {
 });
 
 api.post('/companies/:id', (req, res) => {
+    // Check if the admin token is set and correct
+    if ( !isAdmin(req.headers) ) {
+        res.status(401).send('Admin token missing or incorrect');
+        return;
+    }
+
+    // Check if the Content-Type requested is supported
+    if ( !req.is('application/json') ) {
+        res.status(415).send('Content-Type not supported.');
+        return;
+    }
     const id = req.params.id;
     models.Company.findOne({ 'id' : id }, (err, foundCompany) => {
         if (err) {
@@ -176,7 +218,7 @@ api.post('/companies/:id', (req, res) => {
                 }
 
                 console.log('Req.body', req.body);
-                models.Company.update({'_id' : foundCompany._id }, req.body, (err, updatedCompany) => {
+                models.Company.update({'_id' : foundCompany._id }, req.body, (err) => {
                     if (err) {
                         res.status(500).send(err.message);
                         return;
@@ -186,7 +228,7 @@ api.post('/companies/:id', (req, res) => {
                         'index' : 'companies',
                         'type'  : 'company',
                         'id'    : foundCompany._id.toString()
-                    }).then((resp) => {
+                    }).then(() => {
                         client.index({
                             'index' : 'companies',
                             'type'  : 'company',
@@ -198,7 +240,7 @@ api.post('/companies/:id', (req, res) => {
                                 'url'        : company.url,
                                 'created'    : new Date(),
                             }
-                        }).then((response) => {
+                        }).then(() => {
                             res.status(204).send();
                         }, (err) => {
                             if (err) {
@@ -219,6 +261,12 @@ api.post('/companies/:id', (req, res) => {
 });
 
 api.delete('/companies/:id', (req, res) => {
+    // Check if the admin token is set and correct
+    if ( !isAdmin(req.headers) ) {
+        res.status(401).send('Admin token missing or incorrect');
+        return;
+    }
+
     const id = req.params.id;
     models.Company.findOne({ 'id' : id}, (err, docs) => {
         if (err) {
@@ -234,7 +282,7 @@ api.delete('/companies/:id', (req, res) => {
                 'index' : 'companies',
                 'type'  : 'company',
                 'id'    : docs._id.toString()
-            }).then((resp) => {
+            }).then(() => {
                 res.status(204).send();
                 return;
             }, (err) => {
@@ -246,6 +294,7 @@ api.delete('/companies/:id', (req, res) => {
         });
     });
 });
+
 
 // Returns a list of all registered users
 api.get('/users', (req,res) => {
